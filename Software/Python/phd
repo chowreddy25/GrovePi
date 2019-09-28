@@ -1,0 +1,447 @@
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <wiringPi.h>
+#include <wiringSerial.h>
+#include "graphs.h"
+
+#define UP   17
+#define DOWN 27
+
+#define RPM_PID   0x0c
+#define SPEED_PID 0x0D
+
+float max_strength(float,float,float,float);
+
+char *get_rpm   = "010C\r";
+char *get_speed = "010D\r";
+
+char rpm_buffer[20], rpm_decoded[4];
+char speed_buffer[20], speed_decoded[3];
+int i=0 , j=0 , xx;
+float rpm_value=0, speed_value=0;
+
+float ss[6],ms[6],ls[6], sr[6],mr[6],lr[6];
+char gear_no=0, previous_gear=0;
+float S1[6], S2[6], S3[6], S4[6], z=0;    // Strength of Rule
+float vs2,s21,s22,m21,m22,l21,l22,vl2, Gen_Volt[8],temp=0;
+char gv[4];
+int main ()
+{
+  int fd,fd2;
+  wiringPiSetupGpio();
+  pinMode(UP,OUTPUT);
+  pinMode(DOWN,OUTPUT);
+
+/* Using Serial0(ttyS0) - port used for console*/
+    
+    if ((fd = serialOpen ("/dev/ttyS0",9600)) < 0) {
+        fprintf (stderr, "Unable to open serial device: %s\n", strerror (errno)) ;
+        return 1 ;
+    }
+    if (wiringPiSetup () == -1) {
+        fprintf (stdout, "Unable to start wiringPi: %s\n", strerror (errno)) ;
+        return 1 ;
+    }
+
+/**********************************************************************************/
+while(1)
+{  
+//   delay(1000);
+
+    serialPrintf(fd,get_speed); // send enter key to read data from sensor
+
+   while(serialDataAvail (fd) < 18) ;
+
+   for(i=0;i<18;i++)
+   {
+//	printf ("%x", rpm_buffer[i]=serialGetchar(fd));
+	speed_buffer[i] = serialGetchar(fd);
+    }
+
+//  for(i=0;i<18;i++)
+//     printf("speed_buffer[%d] = %x\n", i , speed_buffer[i]);
+
+	if(speed_buffer[7] > 0x39)
+		speed_buffer[7] = speed_buffer[7] - 0x37;
+        else
+		speed_buffer[7] = speed_buffer[7] - 0x30;
+                
+	if(speed_buffer[8] > 0x39)
+		speed_buffer[8] = speed_buffer[8] - 0x37;
+        else
+		speed_buffer[8] = speed_buffer[8] - 0x30;
+
+
+	if(speed_buffer[10] > 0x39)
+		speed_buffer[10] = speed_buffer[10] - 0x37;
+        else
+		speed_buffer[10] = speed_buffer[10] - 0x30;
+             
+
+	if(speed_buffer[11] > 0x39)
+		speed_buffer[11] = speed_buffer[11] - 0x37;
+        else
+		speed_buffer[11] = speed_buffer[11] - 0x30;
+
+
+	if(speed_buffer[13] > 0x39)
+		speed_buffer[13] = speed_buffer[13] - 0x37;
+        else
+		speed_buffer[13] = speed_buffer[13] - 0x30;
+             
+
+	if(speed_buffer[14] > 0x39)
+		speed_buffer[14] = speed_buffer[14] - 0x37;
+        else
+		speed_buffer[14] = speed_buffer[14] - 0x30;                                
+
+
+
+        speed_decoded[0] = ((speed_buffer[7] << 4) | speed_buffer[8] ); 
+ 	speed_decoded[1] = ((speed_buffer[10]<< 4) | speed_buffer[11]);
+ 	speed_decoded[2] = ((speed_buffer[13]<< 4) | speed_buffer[14]);
+
+
+//  for(i=0;i<3;i++)
+//   printf("%d\n",speed_decoded[i]);
+
+    if(speed_decoded[0] == 0x41 && speed_decoded[1] == SPEED_PID)
+    {
+        printf("-------------------------------------\n");
+        printf("|  Speed    | Prv_Gear | Curr_Gear  |\n");
+	speed_value = (float)speed_decoded[2] ;
+        printf("| %f  |   %d      |", speed_value, previous_gear);
+
+        if(speed_value == 0)    
+        {
+               gear_no = 0;
+               previous_gear=0;
+        }
+       if(speed_value > 0 && speed_value < 15)    
+       {
+                gear_no = 1; 
+                if(previous_gear < gear_no)
+                {
+                previous_gear= gear_no;
+                digitalWrite(UP,HIGH);
+                delay(200);
+                digitalWrite(UP,LOW);
+                }
+               if(previous_gear > gear_no)
+                {
+                previous_gear= gear_no;
+                digitalWrite(DOWN,HIGH);
+                delay(200);
+                digitalWrite(DOWN,LOW);
+                }
+       }
+       if(speed_value >= 15 && speed_value < 25)    
+       {
+                gear_no = 2; 
+                if(previous_gear < gear_no)
+                {
+                previous_gear= gear_no;
+                digitalWrite(UP,HIGH);
+                delay(200);
+                digitalWrite(UP,LOW);
+                }
+               if(previous_gear > gear_no)
+                {
+                previous_gear= gear_no;
+                digitalWrite(DOWN,HIGH);
+                delay(200);
+                digitalWrite(DOWN,LOW);
+                }
+       }
+        if(speed_value >= 25 && speed_value < 35)    
+       {
+                gear_no = 3; 
+                if(previous_gear < gear_no)
+                {
+                previous_gear= gear_no;
+                digitalWrite(UP,HIGH);
+                delay(200);
+                digitalWrite(UP,LOW);
+                }
+               if(previous_gear > gear_no)
+                {
+                previous_gear= gear_no;
+                digitalWrite(DOWN,HIGH);
+                delay(200);
+                digitalWrite(DOWN,LOW);
+                }
+       }
+      if(speed_value >= 35 && speed_value < 45)    
+       {
+                gear_no = 4; 
+                if(previous_gear < gear_no)
+                {
+                previous_gear= gear_no;
+                digitalWrite(UP,HIGH);
+                delay(200);
+                digitalWrite(UP,LOW);
+                }
+               if(previous_gear > gear_no)
+                {
+                previous_gear= gear_no;
+                digitalWrite(DOWN,HIGH);
+                delay(200);
+                digitalWrite(DOWN,LOW);
+                }
+       }
+        if(speed_value >= 45 )    
+       {
+                gear_no = 5; 
+                if(previous_gear < gear_no)
+                {
+                previous_gear= gear_no;
+                digitalWrite(UP,HIGH);
+                delay(200);
+                digitalWrite(UP,LOW);
+                }
+       }
+
+        printf("    %d       |\n",gear_no );
+
+        ss[gear_no] = (10 - speed_value) / 10 ;
+        ms[gear_no] = (float)((float)(speed_value - 0)  / (10 - 0)) ;
+        ls[gear_no] = (float)((float)(speed_value - 10) / (20 - 10)) ;
+
+        printf("-------------------------------------\n");
+        printf("|  SS[%d]    |   MS[%d]   |  LS[%d]    |\n",gear_no,gear_no,gear_no);
+        printf("| %f  |  %f | %f |\n",ss[gear_no],ms[gear_no],ls[gear_no]);
+        printf("-------------------------------------\n");
+        
+        if(gear_no > 1)
+        {
+        for(i=0;i<7;i++)
+        {
+           for(j=0;j<25;j++)
+              {
+                  if(gear_no == 2)
+                      printf("%c",ss2[i][j]);
+                 if(gear_no == 3)
+                      printf("%c",ss3[i][j]);
+                 if(gear_no == 4)
+                      printf("%c",ss4[i][j]);
+                 if(gear_no == 5)
+                      printf("%c",ss5[i][j]);
+              } 
+           printf("\n");
+        }
+        }
+        }
+
+        delay(5000);
+
+  
+/************************************************************************************/
+ 
+    serialPrintf(fd,get_rpm); // send enter key to read data from sensor
+
+   while(serialDataAvail (fd) < 21) ;
+
+   for(i=0;i<21;i++)
+   {
+//	printf ("%x", rpm_buffer[i]=serialGetchar(fd));
+	rpm_buffer[i] = serialGetchar(fd);
+    }
+
+//  for(i=0;i<21;i++)
+//  printf("rpm_buffer[%d] = %x\n",i, rpm_buffer[i]);
+
+	if(rpm_buffer[7] > 0x39)
+		rpm_buffer[7] = rpm_buffer[7] - 0x37;
+        else
+		rpm_buffer[7] = rpm_buffer[7] - 0x30;
+                
+	if(rpm_buffer[8] > 0x39)
+		rpm_buffer[8] = rpm_buffer[8] - 0x37;
+        else
+		rpm_buffer[8] = rpm_buffer[8] - 0x30;
+
+
+	if(rpm_buffer[10] > 0x39)
+		rpm_buffer[10] = rpm_buffer[10] - 0x37;
+        else
+		rpm_buffer[10] = rpm_buffer[10] - 0x30;
+             
+
+	if(rpm_buffer[11] > 0x39)
+		rpm_buffer[11] = rpm_buffer[11] - 0x37;
+        else
+		rpm_buffer[11] = rpm_buffer[11] - 0x30;
+
+
+	if(rpm_buffer[13] > 0x39)
+		rpm_buffer[13] = rpm_buffer[13] - 0x37;
+        else
+		rpm_buffer[13] = rpm_buffer[13] - 0x30;
+             
+
+	if(rpm_buffer[14] > 0x39)
+		rpm_buffer[14] = rpm_buffer[14] - 0x37;
+        else
+		rpm_buffer[14] = rpm_buffer[14] - 0x30;                                
+
+
+	if(rpm_buffer[16] > 0x39)
+		rpm_buffer[16] = rpm_buffer[16] - 0x37;
+        else
+		rpm_buffer[16] = rpm_buffer[16] - 0x30;
+             
+
+	if(rpm_buffer[17] > 0x39)
+		rpm_buffer[17] = rpm_buffer[17] - 0x37;
+        else
+		rpm_buffer[17] = rpm_buffer[17] - 0x30;
+
+
+        rpm_decoded[0] = ((rpm_buffer[7] << 4) | rpm_buffer[8] ); 
+ 	rpm_decoded[1] = ((rpm_buffer[10]<< 4) | rpm_buffer[11]);
+ 	rpm_decoded[2] = ((rpm_buffer[13]<< 4) | rpm_buffer[14]);
+ 	rpm_decoded[3] = ((rpm_buffer[16]<< 4) | rpm_buffer[17]);
+ 
+
+//    for(i=0;i<4;i++)
+//    printf("%x\n",rpm_decoded[i]);
+
+    if(rpm_decoded[0] == 0x41 && rpm_decoded[1] == RPM_PID)
+    {
+// 	rpm_decoded[2] = ((rpm_decoded[2]/10)*16) + (rpm_decoded[2]%10);
+//        rpm_decoded[3] = ((rpm_decoded[3]/10)*16) + (rpm_decoded[3]%10);
+        printf("\n------------------------------------\n");
+        printf("| Value of RPM --> ");
+	rpm_value = ((float)(256* rpm_decoded[2])+ rpm_decoded[3] ) / 4;
+        printf("%f \n", rpm_value);
+
+        sr[gear_no] = (1500 - rpm_value) / 1500 ;
+        mr[gear_no] = (float)((float)(rpm_value - 0)  / (1500 - 0)) ;
+        lr[gear_no] = (float)((float)(rpm_value - 1500) / (2200 - 1500)) ;
+
+        printf("------------------------------------\n");
+        printf("|  SR[%d]   |    MR[%d]  |   LR[%d]   |\n",gear_no,gear_no,gear_no);
+        printf("| %f |  %f | %f |\n",sr[gear_no],mr[gear_no],lr[gear_no]);
+        printf("------------------------------------\n");
+
+
+        S1[gear_no] = ( (ss[gear_no]< sr[gear_no]) ? ss[gear_no] : sr[gear_no]);
+        S2[gear_no] = ( (ss[gear_no]< mr[gear_no]) ? ss[gear_no] : mr[gear_no]);
+        S3[gear_no] = ( (ms[gear_no]< mr[gear_no]) ? ms[gear_no] : mr[gear_no]);
+        S4[gear_no] = ( (ms[gear_no]< sr[gear_no]) ? ss[gear_no] : sr[gear_no]);
+
+        printf("\n-------------------- Strength of Rule ------------------------\n");
+        printf("|  S1[%d]    |    S2[%d]   |    S3[%d]  |    S4[%d]  |     Z     |\n",gear_no,gear_no,gear_no,gear_no);
+        printf("| %f  |  %f  |  %f |  %f | ",S1[gear_no],S2[gear_no],S3[gear_no],S4[gear_no]);
+
+        z = max_strength(S1[gear_no],S2[gear_no],S3[gear_no],S4[gear_no]);
+        printf(" %f |\n", z);
+        printf("--------------------------------------------------------------\n");
+
+        if(gear_no > 1)
+        {
+        for(i=0;i<7;i++)
+        {
+           for(j=0;j<25;j++)
+              {
+                  if(gear_no == 2)
+                      printf("%c",sr2[i][j]);
+                 if(gear_no == 3)
+                      printf("%c",sr3[i][j]);
+                 if(gear_no == 4)
+                      printf("%c",sr4[i][j]);
+                 if(gear_no == 5)
+                      printf("%c",sr5[i][j]);
+              } 
+           printf("\n");
+        }
+        }
+        
+        vs2 = (2-z)/(2-0);
+        s21 = (z-0)/(2-0);
+        s22 = (3-z)/(3-2);
+        m21 = (z-2)/(3-2);
+        m22 = (4-z)/(4-3);
+        l21 = (z-3)/(4-3);
+        l22 = (5-z)/(5-4);
+        vl2 = (z-4)/(5-4);
+
+        Gen_Volt[0] = vs2;
+        Gen_Volt[1] = s21;
+        Gen_Volt[2] = s22;
+        Gen_Volt[3] = m21;
+        Gen_Volt[4] = m22;
+        Gen_Volt[5] = l21;
+        Gen_Volt[6] = l22;
+        Gen_Volt[7] = vl2;
+
+                                                               
+        printf("%f| %f| %f| %f| %f| %f| %f| %f|\n",vs2,s21,s22,m21,m22,l21,l22,vl2);
+
+        temp = Gen_Volt[0];
+        for(i=1;i<8;i++)
+        {
+            if(Gen_Volt[i] > temp)
+                      temp = Gen_Volt[i];
+            
+        }
+        printf("Governor Voltage =  %f  \n",temp );
+
+        if(gear_no > 1)
+        {
+        for(i=0;i<7;i++)
+        {
+           for(j=0;j<25;j++)
+              {
+                  if(gear_no == 2)
+                      printf("%c",gv1[i][j]);
+                 if(gear_no == 3)
+                      printf("%c",gv2[i][j]);
+                 if(gear_no == 4)
+                      printf("%c",gv3[i][j]);
+                 if(gear_no == 5)
+                      printf("%c",gv4[i][j]);
+              } 
+           printf("\n");
+        }
+        }
+  
+     printf("/***********************************************/\n");
+
+        if((fd2 = serialOpen("/dev/ttyUSB0",9600)) < 0) 
+        {
+         fprintf (stderr, "Unable to open serial device: %s\n", strerror (errno)) ;
+        }
+        else
+        {
+           xx = temp*100;    
+           gv[0] = (xx/100)+0x30;
+           gv[1] = '.';
+           gv[2] = (((xx/10)%10)+0x30);
+           gv[3] = ((xx%10)+0x30);
+
+           serialPrintf(fd2,"@");
+           serialPrintf(fd2,gv); 
+           serialPrintf(fd2,"#\r");
+           serialClose(fd2);
+          }
+  
+
+        delay(5000);
+
+    }
+/***********************************************************************************/   
+} // end of while 
+   serialClose(fd);    
+}
+
+
+float max_strength(float x1,float x2,float x3,float x4)
+{
+  float temp1,temp2;
+  temp1 = ( x1 > x2 ? x1 : x2); 
+  temp2 = ( x3 > x4 ? x3 : x4); 
+  return (temp1 > temp2 ? temp1 : temp2);
+
+}
